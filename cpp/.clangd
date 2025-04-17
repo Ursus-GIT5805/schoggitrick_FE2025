@@ -1,0 +1,5 @@
+CompileFlags:
+  CompilationDatabase: "cmake"
+  Add:
+    - "-I/usr/include/opencv4"
+	- "-Ladafruit-motor-hat-cpp-library/source/"

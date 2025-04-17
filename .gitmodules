@@ -1,0 +1,3 @@
+[submodule "cpp/adafruit-motor-hat-cpp-library"]
+	path = cpp/adafruit-motor-hat-cpp-library
+	url = https://github.com/tomfclarke/adafruit-motor-hat-cpp-library

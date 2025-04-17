@@ -1,0 +1,5 @@
+adafruit-circuitpython-motor
+adafruit-circuitpython-pca9685
+opencv-python
+RPi.GPIO
+board
