@@ -1,1 +1,32 @@
-build/compile_commands.json
+[
+{
+  "directory": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/build",
+  "command": "/sbin/c++  -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/include  -o CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/pwm.cpp.o -c /home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/pwm.cpp",
+  "file": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/pwm.cpp",
+  "output": "CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/pwm.cpp.o"
+},
+{
+  "directory": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/build",
+  "command": "/sbin/c++  -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/include  -o CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/i2cdevice.cpp.o -c /home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/i2cdevice.cpp",
+  "file": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/i2cdevice.cpp",
+  "output": "CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/i2cdevice.cpp.o"
+},
+{
+  "directory": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/build",
+  "command": "/sbin/c++  -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/include  -o CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/adafruitmotorhat.cpp.o -c /home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/adafruitmotorhat.cpp",
+  "file": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/adafruitmotorhat.cpp",
+  "output": "CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/adafruitmotorhat.cpp.o"
+},
+{
+  "directory": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/build",
+  "command": "/sbin/c++  -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/include  -o CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/adafruitdcmotor.cpp.o -c /home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/adafruitdcmotor.cpp",
+  "file": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source/adafruitdcmotor.cpp",
+  "output": "CMakeFiles/adafruit_hat.dir/adafruit-motor-hat-cpp-library/source/adafruitdcmotor.cpp.o"
+},
+{
+  "directory": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/build",
+  "command": "/sbin/c++  -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/adafruit-motor-hat-cpp-library/source -I/home/ursus/Documents/github/schoggitrick_FE2025/cpp/include -isystem /usr/include/opencv4  -o CMakeFiles/schoggitrick.dir/src/main.cpp.o -c /home/ursus/Documents/github/schoggitrick_FE2025/cpp/src/main.cpp",
+  "file": "/home/ursus/Documents/github/schoggitrick_FE2025/cpp/src/main.cpp",
+  "output": "CMakeFiles/schoggitrick.dir/src/main.cpp.o"
+}
+]

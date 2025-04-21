@@ -1,41 +1,62 @@
-#include <chrono>
-#include <thread>
-
-#include <wiringPi.h>
-#include "adafruitmotorhat.h"
+#include "drive.cpp"
+#include "camera.cpp"
 
 const int LED = 23;
-
-using namespace std::chrono_literals;
+const int BUTTON = 27;
+const int OP_MODE = 17;
 
 int main() {
-
-	wiringPiSetupGpio();
-	pinMode(LED, OUTPUT);
-
-	for(int i = 0 ; i < 1 ; ++i) {
-		digitalWrite(LED, HIGH);
-		delay(500);
-		digitalWrite(LED, LOW);
-		delay(500);
+	if( wiringPiSetupGpio() != 0 ) {
+		std::cerr << "Could not setup GPIO!" << std::endl;
+		return 1;
 	}
 
-    // connect using the default device address 0x60
-    AdafruitMotorHAT hat;
 
-    // get the motor connected to port 1
-    if (auto motor { hat.getMotor (1) }) {
-        motor->setSpeed (255);
+	Steer steer;
 
-        motor->run (AdafruitDCMotor::kForward);
-        std::this_thread::sleep_for (1s);
+	steer.set_angle(0);
 
-        motor->run (AdafruitDCMotor::kBackward);
-        std::this_thread::sleep_for (1s);
+	steer.forward(200);
+	std::cout << steer.get_steps() << std::endl;
 
-        // release the motor after use
-        motor->run (AdafruitDCMotor::kRelease);
-    }
+	// steer.backward(200);
+	// std::cout << steer.get_steps() << std::endl;
+
+	delay(100);
+}
+
+/* int main3() {
+	if( wiringPiSetupGpio() != 0 ) {
+		std::cerr << "Could not setup GPIO!" << std::endl;
+		return 1;
+	}
+	Steer steer;
+
+	int angle = (ANG_LEFT + ANG_RIGHT) / 2;
+	const int BOUND = 90;
+
+	steer.set_angle(0);
+
+	initscr();
+
+	while(true) {
+		char c = getch();
+
+		if(c == 'w') steer.forward(30);
+		else if(c == 's') steer.backward(30);
+		else if(c == 'a') {
+			angle = std::max(-BOUND, angle - 5);
+			steer.set_angle(angle);
+		}
+		if(c == 'd') {
+			angle = std::min(BOUND, angle + 5);
+			steer.set_angle(angle);
+		}
+
+		if(c == 'q') break;
+	}
+
+	endwin();
 
 	return 0;
-}
+}*/

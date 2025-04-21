@@ -8,6 +8,11 @@ cmake:
 	mkdir -p build
 	cd build && cmake ..
 
+rpi:
+	mkdir -p build
+	cd build && cmake .. -DRPI=1
+
+
 run:
 	make all
 	build/bin/schoggitrick
