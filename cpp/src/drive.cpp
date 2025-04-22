@@ -81,6 +81,7 @@ public:
 		constexpr int DIFF = ANG_RIGHT-ANG_LEFT;
 		constexpr double D2 = (double)DIFF / 2.0;
 		constexpr double MID = (double)(ANG_LEFT + ANG_RIGHT) / 2.0;
+
 		double res = MID + D2*((double)ang / 90.0);
 
 		softPwmWrite(SERVO, res);

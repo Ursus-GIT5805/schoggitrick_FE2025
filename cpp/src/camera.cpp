@@ -1,22 +1,48 @@
 #include <iostream>
 
+#include <opencv2/imgproc.hpp>
 #include <raspicam/raspicam_cv.h>
 #include <opencv2/core/mat.hpp>
+
+const int CAM_WIDTH = 1280;
+const int CAM_HEIGHT = 720;
 
 class Camera {
 private:
 	raspicam::RaspiCam_Cv cam;
 
+// #ifdef DEBUG
+    cv::VideoWriter writer;
+// #endif
+
 public:
 	Camera(){
 		this->cam.set( cv::CAP_PROP_MODE, 2 );
-		// cam.set( cv::CAP_PROP_FRAME_WIDTH, 2592 );
-		// cam.set( cv::CAP_PROP_FRAME_HEIGHT, 1944 );
+		cam.set( cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH );
+		cam.set( cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT );
 
 		if ( !cam.open() ) {
-			std::cerr << "Error opening camera!\n";
+			std::cerr << "Error opening camera!" << std::endl;
 			exit(1);
 		}
+
+// #ifdef DEBUG
+		writer.open("appsrc ! \
+videoconvert ! \
+video/x-raw,format=YUY2,width=" + std::to_string(CAM_WIDTH) + ",height=" + std::to_string(CAM_HEIGHT) + ",framerate=30/1 ! \
+jpegenc ! \
+rtpjpegpay ! \
+udpsink host=laetitia port=5000",
+					0,
+					(double)30, // fps
+					cv::Size(CAM_WIDTH, CAM_HEIGHT),
+					true); // color
+
+		if (!writer.isOpened()) {
+			std::cerr << "Can't create video writer!" << std::endl;
+			exit(1);
+		}
+// #endif
 	}
 
 	~Camera() {
@@ -31,5 +57,16 @@ public:
 		this->cam.retrieve(mat);
 
 		return mat;
+
+		// cv::Mat out;
+		// cv::cvtColor(mat, out, cv::COLOR_RGB2BGR);
+
+		// return out;
 	}
+
+// #ifdef DEBUG
+	void stream_frame(cv::Mat frame) {
+		writer << frame;
+	}
+// #endif
 };
