@@ -1,28 +1,34 @@
+#include <wiringPi.h>
+
+#include "input.cpp"
 #include "drive.cpp"
 #include "camera.cpp"
-
-const int LED = 23;
-const int BUTTON = 27;
-const int OP_MODE = 17;
 
 int main() {
 	if( wiringPiSetupGpio() != 0 ) {
 		std::cerr << "Could not setup GPIO!" << std::endl;
 		return 1;
 	}
-
+	setupInputPins();
 
 	Steer steer;
+	Camera cam;
 
-	steer.set_angle(0);
+	while (true) {
+		cv::Mat frame = cam.read();
+		cam.stream_frame(frame);
+		delay(20);
+	}
 
-	steer.forward(200);
-	std::cout << steer.get_steps() << std::endl;
+	// steer.set_angle(0);
+
+	// steer.forward(200);
+	// std::cout << steer.get_steps() << std::endl;
 
 	// steer.backward(200);
 	// std::cout << steer.get_steps() << std::endl;
 
-	delay(100);
+	// delay(100);
 }
 
 /* int main3() {

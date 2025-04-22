@@ -5,4 +5,4 @@ init:
 	uv pip install -r requirements.txt
 
 push:
-	rsync -av * fe:
+	rsync -av --exclude 'build' * fe:
