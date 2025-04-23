@@ -44,6 +44,26 @@ std::pair<double, double> computeRegressionLine(const std::vector<Point>& points
     return {slope, intercept};
 }
 
+
+
+double turn_amount(bool turn_clockwise){ //returns how much we have to turn in radians 
+                            // to be parallel to the border in question
+    std::vector<Point> barries; // this should contain all the barrier points near the point of interest (-100 to 100 pixel in each direction too many might add wrong data points and take a while)
+    std::pair<double, double> regression_line = computeRegressionLine(barries);
+    if(turn_clockwise){
+        return M_PI/2 - atan(regression_line.first);
+    }
+    else{
+        return M_PI/2 + atan(regression_line.first);
+    }
+}
+
+// run turn_amount constantly to a point a point on the other boundary to check if we are to close and turn if needed
+// also do it for the inner wall but flip the bool turn_clockwise
+
+
+
+
 int main() {
 
 
