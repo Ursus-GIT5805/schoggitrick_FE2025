@@ -4,8 +4,7 @@
 #include <raspicam/raspicam_cv.h>
 #include <opencv2/core/mat.hpp>
 
-const int CAM_WIDTH = 1280;
-const int CAM_HEIGHT = 720;
+#include "imgproc.cpp"
 
 class Camera {
 private:
@@ -20,6 +19,9 @@ public:
 		this->cam.set( cv::CAP_PROP_MODE, 2 );
 		cam.set( cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH );
 		cam.set( cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT );
+		cam.set(cv::CAP_PROP_EXPOSURE, 5);
+		cam.set(cv::CAP_PROP_AUTO_EXPOSURE, -1.0);
+
 
 		if ( !cam.open() ) {
 			std::cerr << "Error opening camera!" << std::endl;
