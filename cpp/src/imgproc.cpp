@@ -205,7 +205,7 @@ inline Color detect_color(cv::Vec3b lab_pixel) {
 	int b = lab_pixel.val[2];
 
 	// check for extreme luminousity
-	if(l < 30) return Black;
+	if(l < 34) return Black;
 
 	int mx = 0, dmax = INT32_MAX;
 	for(int i = 0 ; i < NUM_COLORS ; ++i) {
@@ -232,14 +232,50 @@ inline Mat detect_floor(cv::Mat &src) {
 
 	auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
 		Color col = detect_color(pixel);
-		bool is_floor = col == Blue;
+		bool is_floor = col == White;
+		// bool is_floor = col == Blue ||
+			// col == Orange ||
+			// col == White;
 
 		dst.at<uint8_t>(position[0], position[1]) = 255*(int)is_floor;
 	};
 
 	src.forEach<cv::Vec3b>(op);
 
+	Mat kernel = getStructuringElement( cv::MORPH_RECT,
+										 cv::Size( 3, 3 ),
+										 cv::Point( 1, 1 ) );
 
+	cv::erode(dst, dst, kernel);
+
+	return dst;
+}
+
+inline Mat detect_floor2(cv::Mat &src) {
+	Mat gray, lab;
+	cv::cvtColor(src, gray, cv::COLOR_RGB2GRAY);
+	cv::cvtColor(src, lab, cv::COLOR_RGB2Lab);
+
+	cv::Size sz = src.size();
+	Mat dst = Mat(sz.height, sz.width, CV_8UC1);
+
+	auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
+		cv::Vec3b pix = lab.at<cv::Vec3b>(position[0], position[1]);
+		uint8_t brightness = gray.at<uint8_t>(position[0], position[1]);
+
+		Color col = detect_color(pix);
+
+		bool false_white = brightness < BLACK_THRESHOLD && col == White;
+		bool is_floor = col == Blue ||
+			col == Orange ||
+			col == White;
+
+		is_floor = is_floor && !false_white;
+
+		dst.at<uint8_t>(position[0], position[1]) = 255*(int)is_floor;
+	};
+
+	src.forEach<cv::Vec3b>(op);
 
 	Mat kernel = getStructuringElement( cv::MORPH_RECT,
 										 cv::Size( 3, 3 ),
@@ -258,23 +294,40 @@ enum DirMode {
 
 // src should be in lab
 inline DirMode detect_dir_mode(cv::Mat &src) {
+	const int COL_THRESH = 20;
 	int cnts[3] = {0,0,0};
 
 	cv::Rect lower = cv::Rect(0, CAM_HEIGHT/3, CAM_WIDTH, CAM_HEIGHT/3*2);
 
-	auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
+	int x = CAM_WIDTH / 2;
+	for(int y = 0 ; y < CAM_HEIGHT ; ++y) {
+		cv::Vec3b pixel = src.at<cv::Vec3b>(y, x);
+
 		Color col = detect_color(pixel);
 
-		if(col == Orange) cnts[CounterClockwise]++;
-		if(col == Blue) cnts[CounterClockwise]++;
-	};
+		if(col == Orange) {
+			cnts[Clockwise]++;
+			if(COL_THRESH <= cnts[Clockwise]) return Clockwise;
+		}
+		if(col == Blue) {
+			cnts[CounterClockwise]++;
+			if(COL_THRESH <= cnts[CounterClockwise]) return CounterClockwise;
+		}
+	}
 
-	src(lower).forEach<cv::Vec3b>(op);
+	// auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
+	// 	Color col = detect_color(pixel);
 
-	int mn = std::min(cnts[Clockwise], cnts[CounterClockwise]);
+	// 	if(col == Orange) cnts[Clockwise]++;
+	// 	if(col == Blue) cnts[CounterClockwise]++;
+	// };
 
-	if(cnts[Clockwise]-mn > 50) return Clockwise;
-	if(cnts[CounterClockwise]-mn > 50) return CounterClockwise;
+	// src(lower).forEach<cv::Vec3b>(op);
+
+	// int mn = std::min(cnts[Clockwise], cnts[CounterClockwise]);
+
+	// if(cnts[Clockwise]-mn > 50) return Clockwise;
+	// if(cnts[CounterClockwise]-mn > 50) return CounterClockwise;
 
 	return Unknown;
 }
