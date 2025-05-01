@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <mutex>
 #include <math.h>
@@ -20,14 +21,9 @@ const int ANG_LEFT = 3;
 const int ANG_RIGHT = 19;
 
 static bool __up1 = false;
-static std::mutex __up1_mutex;
-
 static bool __up2 = false;
-static std::mutex __up2_mutex;
 
 static int __steps = false;
-static std::mutex __step_mutex;
-
 
 /*
   diameter of wheels: 42.2mm
@@ -77,35 +73,22 @@ const double STEERING_VELOCITY_RAD = into_rad(STEERING_VELOCITY);
 
 int cnt = 0;
 
-void call1() {
-	std::lock_guard<std::mutex> g1(__up1_mutex);
-	std::lock_guard<std::mutex> g2(__up2_mutex);
-	std::lock_guard<std::mutex> g3(__step_mutex);
-
+static void __call_tacho1() {
 	__up1 = digitalRead(TACHO1);
 
 	if(!__up2) {
 		if(!__up1) __steps++;
 		else __steps--;
 	}
-
-	// std::cout << __steps << "\n";
 }
 
-void call2() {
-	std::lock_guard<std::mutex> g1(__up1_mutex);
-	std::lock_guard<std::mutex> g2(__up2_mutex);
-	std::lock_guard<std::mutex> g3(__step_mutex);
-
+static void _call_tacho2() {
 	__up2 = (bool)(digitalRead(TACHO2) == HIGH);
-
 
 	if(__up1) {
 		if(!__up2) __steps++;
 		else __steps--;
 	}
-
-	// std::cout << __steps << "\n";
 }
 
 class Steer {
@@ -130,8 +113,8 @@ public:
 		__up1 == digitalRead(TACHO1);
 		__up2 == digitalRead(TACHO2);
 
-		wiringPiISR(TACHO1, INT_EDGE_BOTH, call1);
-		wiringPiISR(TACHO2, INT_EDGE_BOTH, call2);
+		wiringPiISR(TACHO1, INT_EDGE_BOTH, __call_tacho1);
+		wiringPiISR(TACHO2, INT_EDGE_BOTH, _call_tacho2);
 	}
 
 	~Steer() {

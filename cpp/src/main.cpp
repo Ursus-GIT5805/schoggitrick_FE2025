@@ -1,6 +1,5 @@
-#include <cmath>
 #include <iostream>
-#include <mutex>
+#include <cmath>
 #include <thread>
 #include <chrono>
 
@@ -13,39 +12,58 @@
 #include "drive.cpp"
 #include "camera.cpp"
 
+// Constants
+
+constexpr int TIME_VID_MS = 1000 / CAM_FPS;
+
+// ---
+
+enum State {
+	Waiting,
+	FreeRun,
+	ObstacleRun,
+};
+
+State state = Waiting;
 bool button_pressable = true;
-bool running = false;
+
+// ---
 
 Steer steer;
 Camera cam;
+
+// ---
 
 // more time would've been much better
 void free_run() {
 	DirMode dir = Unknown;
 
-	steer.power = 128;
+	steer.power = 96;
 	steer.activate();
-
 	steer.set_angle(0);
-	delay(1000);
-
-	// Mat top(CAM_HEIGHT, CAM_WIDTH, CV_8UC1);
 
     cv::Rect toprect(CAM_WIDTH/4, 0, CAM_WIDTH / 2, CAM_HEIGHT/8);
     cv::Rect leftrect(0, 0, CAM_WIDTH / 4, CAM_HEIGHT/2);
     cv::Rect rightrect(CAM_WIDTH / 4 * 3, 0, CAM_WIDTH / 4, CAM_HEIGHT/2);
 
-	// top(rect).setTo(255);
+	while(state == FreeRun) {
+		{
+			auto timenow =
+				std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-	running = true;
-	while(running) {
+			std::cout << "Up:" << ctime(&timenow) << std::endl;
+		}
+
+
+		auto time_start = std::chrono::steady_clock::now();
+
 		Mat frame = cam.read();
 
 		Mat gray, lab;
 		cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
 		cv::cvtColor(frame, lab, cv::COLOR_RGB2Lab);
 
-		Mat floor = detect_floor(lab);
+		Mat floor = detect_floor2(frame);
 
 		{
 			Mat stream;
@@ -71,19 +89,14 @@ void free_run() {
 			rightratio = (double)cnt / (double)(rightrect.area());
 		}
 
-
-		// Ratio of NON_FLOOR / TOTAL_AREA
-		double left_inv = 1.0 - leftratio;
-		double right_inv = 1.0 - rightratio;
-
-		{
-			double mn = std::min(left_inv, right_inv);
-			left_inv -= mn;
-			right_inv -= mn;
+		if(leftratio < 0.3) {
+			std::cout << "LEFT TOO MUCH!\n";
+			steer.set_angle(DEF_SPAN);
 		}
-
-		if(0.4 < left_inv) steer.set_angle(DEF_SPAN);
-		if(0.4 < right_inv) steer.set_angle(-DEF_SPAN);
+		if(rightratio < 0.3) {
+			std::cout << "RIGHT TOO MUCH!\n";
+			steer.set_angle(-DEF_SPAN);
+		}
 
 		if(dir == Unknown) {
 			dir = detect_dir_mode(lab);
@@ -92,17 +105,21 @@ void free_run() {
 			if(dir == CounterClockwise) std::cout << "COUNTER CLOCKWISE!\n";
 		}
 
-		if(topratio < 0.5) {
+		if(topratio < 0.6) {
+			std::cout << "TOP TOO MUCH!\n";
+
 			if(dir == CounterClockwise) steer.set_angle(-DEF_SPAN);
 			if(dir == Clockwise) steer.set_angle(DEF_SPAN);
-
 		} else {
 			steer.set_angle(0);
 		}
 
-		delay(2);
-	}
+		auto time_end = std::chrono::steady_clock::now();
+		int diff = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+		int time_wait = TIME_VID_MS - diff;
 
+		std::this_thread::sleep_for(std::chrono::milliseconds(time_wait));
+	}
 }
 
 void obstacle_run() {
@@ -111,33 +128,29 @@ void obstacle_run() {
 
 void handle_button_press() {
 	if(!button_pressable) return; // Can't press button right now
-
-	auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	std::cout << ctime(&timenow) << std::endl;
-
-	return;
+	if(digitalRead(PIN_BUTTON) == LOW) return;
 
 	Mode mode = read_mode_switch();
 
 	set_led(false);
-
 	if(mode == FREE_RUN) {
+		state = FreeRun;
 		std::cout << "Start Free Run\n";
-		free_run();
 	} else {
+		state = ObstacleRun;
 		std::cout << "Start Obstacle Run\n";
-		obstacle_run();
 	}
-
 	set_led(true);
 }
 
 void handle_mode_switch() {
     using namespace std::chrono_literals;
 
-	if(running) {
-		running  = false;
+	if(state != Waiting) {
+		state = Waiting;
 		steer.deactivate();
+		steer.set_angle(0);
+		button_pressable = true;
 		return; // ignore switch
 	}
 
@@ -164,57 +177,43 @@ int main() {
 	std::cout << "Setup steer\n";
 	steer.init();
 	steer.deactivate();
-	// steer.set_angle(0);
+	steer.set_angle(0);
 
 	std::cout << "Setup edge detection\n";
-	wiringPiISR(PIN_BUTTON, INT_EDGE_RISING, handle_button_press);
-	wiringPiISR(PIN_OP_MODE, INT_EDGE_BOTH, handle_mode_switch);
+
+	button_callback = handle_button_press;
+	op_mode_callback = handle_mode_switch;
+	wiringPiISR(PIN_BUTTON, INT_EDGE_BOTH, __button_edge);
+	wiringPiISR(PIN_OP_MODE, INT_EDGE_BOTH, __op_pin_edge);
 
 	set_led(true);
 
 	std::cout << "Start\n";
 
-	// Run indefinitely (or 200 years ig)
-	std::this_thread::sleep_for(1752000h);
+	while(true) {
+		if(state == FreeRun) {
+			set_led(false);
+			button_pressable = false;
+			free_run();
+			set_led(true);
+		} else if(state == ObstacleRun) {
+			set_led(false);
+			button_pressable = false;
+			obstacle_run();
+			set_led(true);
+		} else {
+			button_pressable = true;
+		}
+
+		{
+			Mat stream = cam.read();
+			cam.stream_frame(stream);
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(TIME_VID_MS));
+	}
 
 	std::cout << "Quitting\n";
 
 	return 0;
 }
-
-/*
-  int main3() {
-	if( wiringPiSetupGpio() != 0 ) {
-		std::cerr << "Could not setup GPIO!" << std::endl;
-		return 1;
-	}
-	Steer steer;
-
-	int angle = (ANG_LEFT + ANG_RIGHT) / 2;
-	const int BOUND = 90;
-
-	steer.set_angle(0);
-
-	initscr();
-
-	while(true) {
-		char c = getch();
-
-		if(c == 'w') steer.forward(30);
-		else if(c == 's') steer.backward(30);
-		else if(c == 'a') {
-			angle = std::max(-BOUND, angle - 5);
-			steer.set_angle(angle);
-		}
-		if(c == 'd') {
-			angle = std::min(BOUND, angle + 5);
-			steer.set_angle(angle);
-		}
-
-		if(c == 'q') break;
-	}
-
-	endwin();
-
-	return 0;
-}*/

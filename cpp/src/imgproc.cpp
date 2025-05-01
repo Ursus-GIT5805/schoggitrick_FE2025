@@ -9,6 +9,7 @@
 
 const int CAM_WIDTH = 1280;
 const int CAM_HEIGHT = 720;
+const int CAM_FPS = 30;
 
 // const int CAM_WIDTH = 2592;
 // const int CAM_HEIGHT = 1944;

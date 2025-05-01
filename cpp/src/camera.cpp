@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
 #include <raspicam/raspicam_cv.h>
 #include <opencv2/core/mat.hpp>
 
@@ -19,6 +20,7 @@ public:
 		this->cam.set( cv::CAP_PROP_MODE, 2 );
 		cam.set( cv::CAP_PROP_FRAME_WIDTH, CAM_WIDTH );
 		cam.set( cv::CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT );
+		cam.set( cv::CAP_PROP_FPS, CAM_FPS );
 		cam.set(cv::CAP_PROP_EXPOSURE, 5);
 		cam.set(cv::CAP_PROP_AUTO_EXPOSURE, -1.0);
 
@@ -36,7 +38,7 @@ jpegenc ! \
 rtpjpegpay ! \
 udpsink host=laetitia port=5000",
 					0,
-					(double)30, // fps
+					(double)CAM_FPS, // fps
 					cv::Size(CAM_WIDTH, CAM_HEIGHT),
 					true); // color
 
@@ -67,7 +69,9 @@ udpsink host=laetitia port=5000",
 	}
 
 // #ifdef DEBUG
-	void stream_frame(cv::Mat frame) {
+	void stream_frame(cv::Mat &frame) {
+		// Mat out;
+		// cv::resize(frame, out, cv::Size(CAM_WIDTH/2, CAM_HEIGHT/2));
 		writer << frame;
 	}
 // #endif
