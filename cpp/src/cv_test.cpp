@@ -39,7 +39,7 @@ inline void print_dir(DirMode dir) {
 
 inline void algo(std::string name, Mat frame) {
 	cv::namedWindow(name.c_str());
-	// Mat out = detect_floor2(frame);
+	Mat out = detect_floor2(frame);
 
 	Mat lab;
 	cv::cvtColor(frame, lab, cv::COLOR_RGB2Lab);
@@ -47,7 +47,7 @@ inline void algo(std::string name, Mat frame) {
 	DirMode dir = detect_dir_mode(lab);
 	print_dir(dir);
 
-	// cv::imshow(name, out);
+	cv::imshow(name, out);
 	cv::imshow(name + "-orig", frame);
 	// cv::imshow(name + "-white", white);
 	// cv::imshow(name + "-black", black);

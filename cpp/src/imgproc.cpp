@@ -190,12 +190,12 @@ enum Color {
 const int NUM_COLORS = 6;
 
 const std::pair<int,int> CENTERS[NUM_COLORS] = {
-	{10000, 10000},
-	{128, 128},
-	{60, 180},
-	{100, 160},
-	{150, 150},
-	{150, 80},
+	{10000, 10000}, // black
+	{128, 128}, // white
+	{60, 180}, // red
+	{100, 160}, // green
+	{135, 135}, // blue
+	{150, 80}, // orange
 };
 
 
@@ -294,7 +294,7 @@ enum DirMode {
 };
 
 // src should be in lab
-inline DirMode detect_dir_mode(cv::Mat &src) {
+inline Color detect_floor_line(cv::Mat &src) {
 	const int COL_THRESH = 20;
 	int cnts[3] = {0,0,0};
 
@@ -308,27 +308,23 @@ inline DirMode detect_dir_mode(cv::Mat &src) {
 
 		if(col == Orange) {
 			cnts[Clockwise]++;
-			if(COL_THRESH <= cnts[Clockwise]) return Clockwise;
+			if(COL_THRESH <= cnts[Clockwise]) return Orange;
 		}
 		if(col == Blue) {
 			cnts[CounterClockwise]++;
-			if(COL_THRESH <= cnts[CounterClockwise]) return CounterClockwise;
+			if(COL_THRESH <= cnts[CounterClockwise]) return Blue;
 		}
 	}
 
-	// auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
-	// 	Color col = detect_color(pixel);
+	return White;
+}
 
-	// 	if(col == Orange) cnts[Clockwise]++;
-	// 	if(col == Blue) cnts[CounterClockwise]++;
-	// };
+// src should be in lab
+inline DirMode detect_dir_mode(cv::Mat &src) {
+	Color col = detect_floor_line(src);
 
-	// src(lower).forEach<cv::Vec3b>(op);
-
-	// int mn = std::min(cnts[Clockwise], cnts[CounterClockwise]);
-
-	// if(cnts[Clockwise]-mn > 50) return Clockwise;
-	// if(cnts[CounterClockwise]-mn > 50) return CounterClockwise;
+	if(col == Blue) return CounterClockwise;
+	if(col == Orange) return Clockwise;
 
 	return Unknown;
 }

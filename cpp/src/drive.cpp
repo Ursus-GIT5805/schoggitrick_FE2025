@@ -14,7 +14,7 @@ const int TACHO1 = 24;
 const int TACHO2 = 22;
 
 // GPIO pin of the servo motor
-const int SERVO = 18;
+const int PIN_SERVO = 18;
 
 // Angle declarations
 const int ANG_LEFT = 3;
@@ -103,7 +103,7 @@ public:
 	Steer() {}
 
 	void init() {
-		softPwmCreate(SERVO, 0, 20);
+		softPwmCreate(PIN_SERVO, 0, 20);
 
 		this->motor = this->hat.getMotor(1);
 
@@ -139,7 +139,7 @@ public:
 		std::cout << "New angle: " << this->angle << "\n";
 		std::cout << "Set servo: " << res << "\n";
 
-		softPwmWrite(SERVO, (int)res);
+		softPwmWrite(PIN_SERVO, (int)res);
 	}
 
 	void turn(double ang) {
@@ -200,10 +200,14 @@ public:
 		motor->setSpeed(this->power);
 		motor->run(AdafruitDCMotor::kBackward);
 
-		while(__steps < goal) delay(1);
+		while(goal < __steps) delay(1);
 
 		motor->run(AdafruitDCMotor::kBrake);
 		motor->setSpeed(0);
+	}
+
+	void reset_steps() {
+		__steps = 0;
 	}
 
 	int get_steps() {
