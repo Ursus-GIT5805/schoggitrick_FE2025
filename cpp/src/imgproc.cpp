@@ -239,7 +239,7 @@ inline Mat detect_floor(cv::Mat &lab, cv::Mat &gray) {
 // src should be in lab
 inline Color detect_floor_line(cv::Mat &src) {
 	const int COL_THRESH = 20;
-	int cnts[3] = {0,0,0};
+	int cnts[2] = {0,0};
 
 	cv::Rect lower = cv::Rect(0, CAM_HEIGHT/3, CAM_WIDTH, CAM_HEIGHT/3*2);
 
@@ -250,12 +250,12 @@ inline Color detect_floor_line(cv::Mat &src) {
 		Color col = detect_color(pixel);
 
 		if(col == Orange) {
-			cnts[Clockwise]++;
-			if(COL_THRESH <= cnts[Clockwise]) return Orange;
+			cnts[0]++;
+			if(COL_THRESH <= cnts[0]) return Orange;
 		}
 		if(col == Blue) {
-			cnts[CounterClockwise]++;
-			if(COL_THRESH <= cnts[CounterClockwise]) return Blue;
+			cnts[1]++;
+			if(COL_THRESH <= cnts[1]) return Blue;
 		}
 	}
 

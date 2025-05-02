@@ -17,6 +17,11 @@ constexpr int TIME_VID_MS = 1000 / CAM_FPS;
 
 // How many frames the change of the floor line is ignore
 const int FLOOR_LINE_IGNORE = 0;
+// Number of steps to ignore the last floorline
+const int STEPS_FLOOR_LINE_IGNORE = 360*2;
+
+// Number of final steps to do after having done 3 laps in Free Run
+const int FINAL_STEPS = 3900;
 
 enum State {
 	Waiting,
@@ -43,7 +48,7 @@ Camera cam;
 
 // === Free Run ===
 inline void free_run() {
-	auto free_run_start = system_clock::now();
+	auto free_run_start = std::chrono::system_clock::now();
 
 	Color floor_line = White;
 	int floor_line_ignore_cnt = 0;
@@ -51,6 +56,7 @@ inline void free_run() {
 	DirMode dir = Unknown;
 
 	int cnt_orange = 0; // We'll only count orange, as it's better detectable
+	int last_orange = -1000000;
 	int cnt_blue = 0;
 
 	int stop_step = INT32_MAX; // If the step counter passes this counter, stop immediately
@@ -63,6 +69,7 @@ inline void free_run() {
 
 		if(floor_line == Orange) {
 			cnt_orange++;
+			last_orange = 0;
 			dir = Clockwise;
 		}
 		if(floor_line == Blue) {
@@ -155,12 +162,16 @@ inline void free_run() {
 			int steps = steer.get_steps();
 
 			if(col != floor_line && FLOOR_LINE_IGNORE < ++floor_line_ignore_cnt) {
+
+				int step_diff = steps-last_orange;
+
 				if(col == Blue) {
 					cnt_blue += 1;
 					// std::cout << "Floor: Blue (" << cnt_blue << ")\n";
-				} else if(col == Orange) {
+				} else if(col == Orange && STEPS_FLOOR_LINE_IGNORE <= step_diff) {
 					cnt_orange += 1;
-					// std::cout << "Floor: Orange (" << cnt_orange << ")\n";
+					last_orange = steps;
+					std::cout << "Floor: Orange (" << cnt_orange << ")\n";
 				}
 
 				floor_line = col;
@@ -180,7 +191,11 @@ inline void free_run() {
 
 			// Slowly start to stop on the 12th occurance
 			if(12 == cnt_orange) {
-				stop_step = std::min(stop_step, steps+3725);
+				int add = 0;
+				// Drive a bit more on cw, bc it's first orange, then blue
+				if(dir == Clockwise) add += 360;
+
+				stop_step = std::min(stop_step, steps + FINAL_STEPS + add);
 			}
 
 			// Counted the 13th line, we should stop!
@@ -212,7 +227,7 @@ inline void free_run() {
 			steer.set_angle(0);
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-			steer.backward(360);
+			steer.backward(720);
 			steer.activate();
 		} else if(leftratio < left_thresh) {
 			// Too much wall on the left: turn right
@@ -249,7 +264,7 @@ inline void free_run() {
 	steer.set_angle(0);
 	steer.deactivate();
 
-	auto free_run_end = system_clock::now();
+	auto free_run_end = std::chrono::system_clock::now();
 	int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(free_run_end-free_run_start).count();
 	std::cout << "Needed: " << elapsed << "\n";
 }

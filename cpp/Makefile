@@ -10,7 +10,7 @@ cmake:
 
 rpi:
 	mkdir -p build
-	cd build && cmake .. -DRPI=1
+	cd build && cmake ..
 
 run:
 	make all
@@ -19,3 +19,8 @@ run:
 test:
 	make all
 	build/bin/cv_test
+
+release:
+	mkdir -p build
+	cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
+	cd build && make
