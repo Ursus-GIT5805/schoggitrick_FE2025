@@ -1,0 +1,12 @@
+[Unit]
+Description=Main bot
+After=local-fs.target
+
+[Service]
+ExecStart=/home/pi/fe_bin
+ExecReload=/home/pi/fe_bin
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=basic.target

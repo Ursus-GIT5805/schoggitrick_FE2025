@@ -22,5 +22,5 @@ test:
 
 release:
 	mkdir -p build
-	cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
+	cd build && cmake --config Release ..
 	cd build && make
