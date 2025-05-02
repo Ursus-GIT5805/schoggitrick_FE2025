@@ -9,11 +9,10 @@
 #include <wiringPi.h>
 #include <softPwm.h>
 
-// GPIO pins of the tachometer
+// GPIO BCM pins of the tachometer/servo motor
 const int TACHO1 = 24;
 const int TACHO2 = 22;
 
-// GPIO pin of the servo motor
 const int PIN_SERVO = 18;
 
 // Angle declarations
@@ -25,25 +24,11 @@ static bool __up2 = false;
 
 static int __steps = false;
 
-/*
-  diameter of wheels: 42.2mm
-  distance between the wheels (0 deg steer): 120mm
-
-  distance between front wheels: 87.5mm
-
-  width: 150mm
-  length: around 210mm
-
-  height: 150mm
-
-  1 tachostep ~= 0.825mm
-*/
+// ===== Distances are in millimeters =====
 
 const double into_rad(double ang) {
 	return ang / 180.0 * M_PI;
 }
-
-// ===== Distances are in millimeters =====
 
 const int TACHO_COUNT_PER_WIND = 360; // 360 steps per turn
 const double WHEEL_DIAMETER = 43.2;
@@ -67,12 +52,6 @@ const double DEF_SPAN = std::min(ANGLE_SPAN_RIGHT, ANGLE_SPAN_LEFT);
 const double STEERING_VELOCITY = (ANGLE_SPAN_LEFT + ANGLE_SPAN_RIGHT) / 0.16;
 const double STEERING_VELOCITY_RAD = into_rad(STEERING_VELOCITY);
 
-// void (*step_callback)(int step) = nullptr;
-
-// on the current config:
-
-int cnt = 0;
-
 static void __call_tacho1() {
 	__up1 = digitalRead(TACHO1);
 
@@ -91,21 +70,26 @@ static void _call_tacho2() {
 	}
 }
 
+// Wrapper around the mindstorms motor (driving) and the servo
+// motor (steering)
 class Steer {
 private:
 	AdafruitMotorHAT hat;
 	std::shared_ptr<AdafruitDCMotor> motor;
 
 public:
+	// Also known as throttle
 	int power = 128;
 	double angle = 0.0;
 
-	Steer() {}
+	Steer() {
+		this->motor = this->hat.getMotor(1);
+	}
 
+	// Initialises the servo motor and the tacho meter
+	// wiringPiSetup must be called before!
 	void init() {
 		softPwmCreate(PIN_SERVO, 0, 20);
-
-		this->motor = this->hat.getMotor(1);
 
 		pinMode(TACHO1, INPUT);
 		pinMode(TACHO2, INPUT);
@@ -122,6 +106,7 @@ public:
 		motor->run(AdafruitDCMotor::kRelease);
 	}
 
+	// Sets the current angle
 	void set_angle(double ang) {
 		ang = std::min(ANGLE_SPAN_RIGHT, ang);
 		ang = std::max(-ANGLE_SPAN_LEFT, ang);
@@ -142,6 +127,7 @@ public:
 		softPwmWrite(PIN_SERVO, (int)res);
 	}
 
+	// unused
 	void turn(double ang) {
 		double sign = 1.0;
 

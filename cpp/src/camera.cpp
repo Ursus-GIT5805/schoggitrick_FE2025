@@ -7,13 +7,14 @@
 
 #include "imgproc.cpp"
 
+// Wrapper around the RPi camera
 class Camera {
 private:
 	raspicam::RaspiCam_Cv cam;
 
-// #ifdef DEBUG
+#ifdef DEBUG
     cv::VideoWriter writer;
-// #endif
+#endif
 
 public:
 	Camera(){
@@ -30,7 +31,7 @@ public:
 			exit(1);
 		}
 
-// #ifdef DEBUG
+#ifdef DEBUG
 		writer.open("appsrc ! \
 videoconvert ! \
 video/x-raw,format=YUY2,width=" + std::to_string(CAM_WIDTH) + ",height=" + std::to_string(CAM_HEIGHT) + ",framerate=30/1 ! \
@@ -46,7 +47,7 @@ udpsink host=laetitia port=5000",
 			std::cerr << "Can't create video writer!" << std::endl;
 			exit(1);
 		}
-// #endif
+#endif
 	}
 
 	~Camera() {
@@ -61,18 +62,12 @@ udpsink host=laetitia port=5000",
 		this->cam.retrieve(mat);
 
 		return mat;
-
-		// cv::Mat out;
-		// cv::cvtColor(mat, out, cv::COLOR_RGB2BGR);
-
-		// return out;
 	}
 
-// #ifdef DEBUG
+#ifdef DEBUG
+	// Stream the frame
 	void stream_frame(cv::Mat &frame) {
-		// Mat out;
-		// cv::resize(frame, out, cv::Size(CAM_WIDTH/2, CAM_HEIGHT/2));
-		writer << frame;
+		this->writer << frame;
 	}
-// #endif
+#endif
 };

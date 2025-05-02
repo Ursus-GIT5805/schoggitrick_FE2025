@@ -6,17 +6,14 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 
+using cv::Mat;
 
+// Camera data
 const int CAM_WIDTH = 1280;
 const int CAM_HEIGHT = 720;
 const int CAM_FPS = 30;
 
-// const int CAM_WIDTH = 2592;
-// const int CAM_HEIGHT = 1944;
-
-using cv::Mat;
-
-// All measured
+// All manually measured/entered
 const int low_H = 60, high_H = 255;
 
 const int red0_low = 0;
@@ -28,7 +25,20 @@ const int red1_high = 255;
 const int green_low = 50;
 const int green_high = 91;
 
+const int BLACK_THRESHOLD = 42;
+const int WHITE_THRESHOLD = 138;
+
+// ---
+
+constexpr double camera_min_vertical_view = 44.2559408  / 180 * M_PI;
+
+constexpr double FOV_HORIZONTAL = 53.5 / 180 * M_PI;
+constexpr double FOV_VERTICAL = 41.41 / 180 * M_PI;
+
+const double CAM_PHYSICAL_HEIGHT = 117;
+
 // Masks green. SRC should be in HSV
+// ultimately unused
 inline void detect_green(cv::InputArray src, cv::OutputArray dst) {
 	auto lw = cv::Scalar(green_low, low_H, low_H);
 	auto up = cv::Scalar(green_high, high_H, high_H);
@@ -36,8 +46,9 @@ inline void detect_green(cv::InputArray src, cv::OutputArray dst) {
 	cv::inRange(src, lw, up, dst);
 }
 
-// Masks green. SRC should be in HSV
+// Masks red. SRC should be in HSV
 // EXPERIMENTAL, NEEDS MORE testing
+// ultimately unused
 inline void detect_red(cv::InputArray src, cv::OutputArray dst) {
 	auto lw0 = cv::Scalar(red0_low, low_H, low_H);
 	auto up0 = cv::Scalar(red0_high, high_H, high_H);
@@ -52,13 +63,7 @@ inline void detect_red(cv::InputArray src, cv::OutputArray dst) {
 	cv::bitwise_or(mask0, mask1, dst);
 }
 
-constexpr double camera_min_vertical_view = 44.2559408  / 180 * M_PI;
-
-constexpr double FOV_HORIZONTAL = 53.5 / 180 * M_PI;
-constexpr double FOV_VERTICAL = 41.41 / 180 * M_PI;
-
-const double CAM_PHYSICAL_HEIGHT = 117;
-
+// unused
 inline std::pair<double, double> dist_from_camera(double pixel_x, double pixel_y){
     std::pair<double, double> location;
 
@@ -75,11 +80,9 @@ inline std::pair<double, double> dist_from_camera(double pixel_x, double pixel_y
     return location;
 }
 
-
-const int BLACK_THRESHOLD = 42;
-const int WHITE_THRESHOLD = 138;
-
-// Input picture must be gray
+// Creates a mask where all blackish pixels are on
+// src must be gray to work correctly
+// unused
 inline void detect_black(cv::InputArray src, cv::OutputArray dst) {
 	// auto lw = cv::Scalar(0, 32, 32);
 	// auto up = cv::Scalar(40, 232, 232);
@@ -87,7 +90,9 @@ inline void detect_black(cv::InputArray src, cv::OutputArray dst) {
 	cv::threshold(src, dst, BLACK_THRESHOLD, 255, cv::THRESH_BINARY_INV);
 }
 
-// Pictre must be in gray
+// Creates a mask where all white-ish pixels are on
+// src must be gray to work correctly
+// unused
 inline void detect_white(cv::InputArray src, cv::OutputArray dst) {
 	cv::threshold(src, dst, WHITE_THRESHOLD, 255, cv::THRESH_BINARY);
 
@@ -105,34 +110,7 @@ inline void detect_white(cv::InputArray src, cv::OutputArray dst) {
 	cv::dilate(tmp, dst, kernel_big);
 }
 
-inline void detect_floor_bad(cv::InputArray src, cv::OutputArray dst) {
-	Mat gray, hsv;
-	cv::cvtColor(src, gray, cv::COLOR_RGB2GRAY);
-	cv::cvtColor(src, hsv, cv::COLOR_RGB2HSV);
-
-	Mat black;
-	detect_black(gray, black);
-
-	Mat red;
-	detect_red(hsv, red);
-
-	Mat green;
-	detect_green(hsv, green);
-
-	std::cout << red.type() << "\n";
-	std::cout << green.type() << "\n";
-	std::cout << black.type() << "\n";
-
-	Mat mask = red | green | black;
-
-
-	Mat kernel = getStructuringElement( cv::MORPH_RECT,
-										 cv::Size( 5, 5 ),
-										 cv::Point( 2, 2 ) );
-
-	cv::bitwise_not(mask, dst);
-}
-
+// unused
 inline std::pair<double, double> computeRegressionLine(const std::vector<std::pair<double,double>>& points) {
     double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
     int n = points.size();
@@ -151,10 +129,9 @@ inline std::pair<double, double> computeRegressionLine(const std::vector<std::pa
 }
 
 // Returns how much we have to turn in radians
-// barries should contain all the barrier points near the point of interest (-100 to 100 pixel in each direction too many might add wrong data points and take a while)
+// barries should contain all the barrier points near the point of interest
+// (-100 to 100 pixel in each direction too many might add wrong data points and take a while)
 double turn_amount(bool turn_clockwise, std::vector<cv::Point> &barries){
-	// to be parallel to the border in question
-
 	std::cout << "Num pts: " << barries.size() << "\n";
 
 	std::vector< std::pair<double, double> > v(barries.size());
@@ -175,13 +152,9 @@ double turn_amount(bool turn_clockwise, std::vector<cv::Point> &barries){
     }
 }
 
-inline void edge_detection(cv::InputArray src, cv::OutputArray dst) {
-	// Mat blur;
-	// cv::blur( src, blur, cv::Size(3,3) );
-	// TODO set threshold to const valie
-	cv::Canny(src, dst, 30, 255, 3);
-}
+// =====
 
+// An enum of colors we have to distinguish
 enum Color {
 	Black, White,
 	Red, Green,
@@ -189,7 +162,9 @@ enum Color {
 };
 const int NUM_COLORS = 6;
 
+// The Lab centroids used to create borders between colors
 const std::pair<int,int> CENTERS[NUM_COLORS] = {
+	// Uses the same enumeration as the Color enum
 	{10000, 10000}, // black
 	{128, 128}, // white
 	{60, 180}, // red
@@ -199,7 +174,8 @@ const std::pair<int,int> CENTERS[NUM_COLORS] = {
 };
 
 
-// the pixel in lab format
+// Returns the color given the pixel
+// lab_pixel: A pixel in the Lab color space
 inline Color detect_color(cv::Vec3b lab_pixel) {
 	int l = lab_pixel.val[0];
 	int a = lab_pixel.val[1];
@@ -208,6 +184,7 @@ inline Color detect_color(cv::Vec3b lab_pixel) {
 	// check for extreme luminousity
 	if(l < 34) return Black;
 
+	// Find the nearest centroids
 	int mx = 0, dmax = INT32_MAX;
 	for(int i = 0 ; i < NUM_COLORS ; ++i) {
 		int x = CENTERS[i].first;
@@ -226,45 +203,17 @@ inline Color detect_color(cv::Vec3b lab_pixel) {
 	return (Color)mx;
 }
 
-// Src should be in Lab
-inline Mat detect_floor(cv::Mat &src) {
-	cv::Size sz = src.size();
+// Detect the areas that are considered the floor (blue, orange, white)
+// lab: frame in Lab-colorspace
+// gray: frame in gray-colorspace
+inline Mat detect_floor(cv::Mat &lab, cv::Mat &gray) {
+	cv::Size sz = lab.size();
 	Mat dst = Mat(sz.height, sz.width, CV_8UC1);
 
 	auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
-		Color col = detect_color(pixel);
-		bool is_floor = col == White;
-		// bool is_floor = col == Blue ||
-			// col == Orange ||
-			// col == White;
-
-		dst.at<uint8_t>(position[0], position[1]) = 255*(int)is_floor;
-	};
-
-	src.forEach<cv::Vec3b>(op);
-
-	Mat kernel = getStructuringElement( cv::MORPH_RECT,
-										 cv::Size( 3, 3 ),
-										 cv::Point( 1, 1 ) );
-
-	cv::erode(dst, dst, kernel);
-
-	return dst;
-}
-
-inline Mat detect_floor2(cv::Mat &src) {
-	Mat gray, lab;
-	cv::cvtColor(src, gray, cv::COLOR_RGB2GRAY);
-	cv::cvtColor(src, lab, cv::COLOR_RGB2Lab);
-
-	cv::Size sz = src.size();
-	Mat dst = Mat(sz.height, sz.width, CV_8UC1);
-
-	auto op = [&](cv::Vec3b &pixel, const int * position) -> void {
-		cv::Vec3b pix = lab.at<cv::Vec3b>(position[0], position[1]);
 		uint8_t brightness = gray.at<uint8_t>(position[0], position[1]);
 
-		Color col = detect_color(pix);
+		Color col = detect_color(pixel);
 
 		bool false_white = brightness < BLACK_THRESHOLD && col == White;
 		bool is_floor = col == Blue ||
@@ -276,7 +225,7 @@ inline Mat detect_floor2(cv::Mat &src) {
 		dst.at<uint8_t>(position[0], position[1]) = 255*(int)is_floor;
 	};
 
-	src.forEach<cv::Vec3b>(op);
+	lab.forEach<cv::Vec3b>(op);
 
 	Mat kernel = getStructuringElement( cv::MORPH_RECT,
 										 cv::Size( 3, 3 ),
@@ -286,12 +235,6 @@ inline Mat detect_floor2(cv::Mat &src) {
 
 	return dst;
 }
-
-enum DirMode {
-	Unknown,
-	Clockwise,
-	CounterClockwise,
-};
 
 // src should be in lab
 inline Color detect_floor_line(cv::Mat &src) {
@@ -317,14 +260,4 @@ inline Color detect_floor_line(cv::Mat &src) {
 	}
 
 	return White;
-}
-
-// src should be in lab
-inline DirMode detect_dir_mode(cv::Mat &src) {
-	Color col = detect_floor_line(src);
-
-	if(col == Blue) return CounterClockwise;
-	if(col == Orange) return Clockwise;
-
-	return Unknown;
 }

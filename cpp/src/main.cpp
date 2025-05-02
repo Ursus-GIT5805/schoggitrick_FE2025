@@ -12,13 +12,11 @@
 #include "drive.cpp"
 #include "camera.cpp"
 
-// Constants
-
+// Time delay between 2 frames in 1 second (in ms)
 constexpr int TIME_VID_MS = 1000 / CAM_FPS;
-// How many frames it should ignore the change of the floor line
-const int FLOOR_LINE_IGNORE = 0;
 
-// ---
+// How many frames the change of the floor line is ignore
+const int FLOOR_LINE_IGNORE = 0;
 
 enum State {
 	Waiting,
@@ -26,18 +24,25 @@ enum State {
 	ObstacleRun,
 };
 
+// Direction used to save the cw, ccw state in Freerun
+enum DirMode {
+	Unknown,
+	Clockwise,
+	CounterClockwise,
+};
+
+// --- Global Variables ---
+
 State state = Waiting;
 bool button_pressable = true;
-
-// ---
 
 Steer steer;
 Camera cam;
 
 // ---
 
-// more time would've been much better
-void free_run() {
+// === Free Run ===
+inline void free_run() {
 	auto free_run_start = system_clock::now();
 
 	Color floor_line = White;
@@ -48,8 +53,9 @@ void free_run() {
 	int cnt_orange = 0; // We'll only count orange, as it's better detectable
 	int cnt_blue = 0;
 
-	int stop_step = INT32_MAX;
+	int stop_step = INT32_MAX; // If the step counter passes this counter, stop immediately
 
+	// Read one frame, see if it can immediately detect a floor line
 	{
 		Mat frame = cam.read(), lab;
 		cv::cvtColor(frame, lab, cv::COLOR_RGB2Lab);
@@ -66,21 +72,26 @@ void free_run() {
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(TIME_VID_MS));
 
+#ifdef DEBUG
 		if(dir == Clockwise) std::cout << "CLOCKWISE!\n";
 		if(dir == CounterClockwise) std::cout << "COUNTER CLOCKWISE!\n";
+#endif
 	}
 
+	// Setup steer
 	steer.reset_steps();
 	steer.power = 128;
 	steer.activate();
 	steer.set_angle(0);
 
+	// Segment the frame in several segments
     cv::Rect toprect(CAM_WIDTH/4, 0, CAM_WIDTH/2, CAM_HEIGHT/8);
     cv::Rect leftrect(0, CAM_HEIGHT / 8, CAM_WIDTH / 8, CAM_HEIGHT/3);
     cv::Rect rightrect(CAM_WIDTH / 8 * 7, CAM_HEIGHT / 8, CAM_WIDTH / 8, CAM_HEIGHT / 3);
     cv::Rect lowrect(CAM_WIDTH/4, CAM_HEIGHT/2, CAM_WIDTH/2, CAM_HEIGHT/2);
 
 	while(state == FreeRun) {
+#ifdef DEBUG
 		{
 			auto timenow =
 				std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -88,7 +99,9 @@ void free_run() {
 			std::cout << "Up:" << ctime(&timenow) << "\n";
 			std::cout << "Steps: " << steer.get_steps() << " [" << stop_step << "]\n";
 		}
+#endif
 
+		// Check if we should stop
 		if(stop_step < steer.get_steps()) {
 			state = Waiting;
 			break;
@@ -97,18 +110,19 @@ void free_run() {
 		auto time_start = std::chrono::steady_clock::now();
 
 		Mat frame = cam.read();
-
 		Mat gray, lab;
 		cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
 		cv::cvtColor(frame, lab, cv::COLOR_RGB2Lab);
 
-		Mat floor = detect_floor2(frame);
+		Mat floor = detect_floor(lab, gray);
 
+#ifdef DEBUG
 		{
 			Mat stream;
 			cv::cvtColor(floor, stream, cv::COLOR_GRAY2RGB);
 			cam.stream_frame(stream);
 		}
+#endif
 
 		double topratio;
 		{
@@ -135,7 +149,7 @@ void free_run() {
 		}
 
 
-		// Line counting
+		// Analyze the floor line
 		{
 			Color col = detect_floor_line(lab);
 			int steps = steer.get_steps();
@@ -143,10 +157,10 @@ void free_run() {
 			if(col != floor_line && FLOOR_LINE_IGNORE < ++floor_line_ignore_cnt) {
 				if(col == Blue) {
 					cnt_blue += 1;
-					std::cout << "Floor: Blue (" << cnt_blue << ")\n";
+					// std::cout << "Floor: Blue (" << cnt_blue << ")\n";
 				} else if(col == Orange) {
 					cnt_orange += 1;
-					std::cout << "Floor: Orange (" << cnt_orange << ")\n";
+					// std::cout << "Floor: Orange (" << cnt_orange << ")\n";
 				}
 
 				floor_line = col;
@@ -156,28 +170,21 @@ void free_run() {
 			if(dir == Unknown) {
 				if(col == Orange) {
 					dir = Clockwise;
-					std::cout << "CLOCKWISE!\n";
+					// std::cout << "CLOCKWISE!\n";
 				}
 				if(col == Blue) {
 					dir = CounterClockwise;
-					std::cout << "COUNTER CLOCKWISE!\n";
+					// std::cout << "COUNTER CLOCKWISE!\n";
 				}
 			}
 
-			bool end_soon = false, stop_now = false;
+			// Slowly start to stop on the 12th occurance
+			if(12 == cnt_orange) {
+				stop_step = std::min(stop_step, steps+3725);
+			}
 
-			if(12 == cnt_orange) end_soon = true;
-			if(12 < cnt_orange) stop_now = true;
-
-			// if(dir == Clockwise) {
-			// } else {
-			// 	if(12 == cnt_blue) end_soon = true;
-			// 	if(12 < cnt_blue) stop_now = true;
-			// }
-
-			if(end_soon) stop_step = std::min(stop_step, steps+3725);
-
-			if(stop_now) {
+			// Counted the 13th line, we should stop!
+			if(12 < cnt_orange) {
 				state = Waiting;
 				break;
 			}
@@ -186,21 +193,21 @@ void free_run() {
 		double left_thresh = 0.5;
 		double right_thresh = 0.5;
 
+		// If we turn clockwise, it should act less if it wants to turn in the other direction
 		if(dir == Clockwise) right_thresh = 0.3;
 		if(dir == CounterClockwise) left_thresh = 0.3;
 
-
+#ifdef DEBUG
 		{
 			std::cout << "Low: " << lowratio << "\n";
 			std::cout << "Left: " << leftratio << "\n";
 			std::cout << "Right: " << rightratio << "\n";
 			std::cout << "Top: " << topratio << "\n";
-
 		}
+#endif
 
 		if(lowratio < 0.2) {
-			std::cout << "BOTTOM TOO MUCH!\n";
-
+			// There's a wall just in front of us: fall back
 			steer.deactivate();
 			steer.set_angle(0);
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -208,25 +215,26 @@ void free_run() {
 			steer.backward(360);
 			steer.activate();
 		} else if(leftratio < left_thresh) {
-			std::cout << "LEFT TOO MUCH!\n";
+			// Too much wall on the left: turn right
 
 			int div = 1;
 			if(dir == CounterClockwise) div = 2;
 
 			steer.set_angle(DEF_SPAN / div);
 		} else if(rightratio < right_thresh) {
-			std::cout << "RIGHT TOO MUCH!\n";
+			// Too much wall on the right: turn left
 
 			int div = 1;
 			if(dir == Clockwise) div = 2;
 
 			steer.set_angle(-DEF_SPAN / div);
 		} else if(topratio < 0.4) {
-			std::cout << "TOP TOO MUCH!\n";
+			// Too much in front: turn in the direction we detected (cw, ccw)
 
 			if(dir == CounterClockwise) steer.set_angle(-DEF_SPAN);
 			if(dir == Clockwise) steer.set_angle(DEF_SPAN);
 		} else {
+			// No wall in either direction, just drive forwards
 			steer.set_angle(0);
 		}
 
@@ -237,31 +245,32 @@ void free_run() {
 		if(0 < time_wait) std::this_thread::sleep_for(std::chrono::milliseconds(time_wait));
 	}
 
+	// Stop motor, reset steer
 	steer.set_angle(0);
 	steer.deactivate();
 
 	auto free_run_end = system_clock::now();
-
-
 	int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(free_run_end-free_run_start).count();
-
 	std::cout << "Needed: " << elapsed << "\n";
 }
 
-void obstacle_run() {
+// === Obstacle run ===
+// does absolutely nothing as we gave up on this
+inline void obstacle_run() {
     using namespace std::chrono_literals;
 
 	steer.set_angle(0);
 	std::this_thread::sleep_for(500ms);
 
 	while(state == ObstacleRun) {
-		steer.activate(); // just drive forwards bc fuck this challenge
+		steer.activate();
 	}
 
 	steer.deactivate();
 	steer.set_angle(0);
 }
 
+// ISR event to be handled on a button press
 void handle_button_press() {
 	if(!button_pressable) return; // Can't press button right now
 	if(digitalRead(PIN_BUTTON) == LOW) return;
@@ -279,6 +288,7 @@ void handle_button_press() {
 	set_led(true);
 }
 
+// ISR event to be handled on mode switch
 void handle_mode_switch() {
     using namespace std::chrono_literals;
 
@@ -307,7 +317,7 @@ int main() {
 		std::cerr << "Could not setup GPIO!" << std::endl;
 		return 1;
 	}
-	setupInputPins();
+	setupIOPins();
 	set_led(false);
 
 	std::cout << "Setup steer\n";
@@ -343,10 +353,12 @@ int main() {
 			button_pressable = true;
 		}
 
+#ifdef DEBUG
 		{
 			Mat stream = cam.read();
 			cam.stream_frame(stream);
 		}
+#endif
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(TIME_VID_MS));
 	}
