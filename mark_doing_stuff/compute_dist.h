@@ -1,0 +1,1 @@
+std::pair<double, double> dist_from_camera(double pixel_x, double pixel_y);
